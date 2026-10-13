@@ -146,6 +146,32 @@ const projects: Project[] = [
         isSeekingCollaborators: false,
         createdAt: new Date("2026-12-02"),
     },
+    {
+        id: "11",
+        title: "Pictureless App",
+        description: "A project w/o a picture",
+        image: undefined,
+        creator: "Liam",
+        collaborators: [],
+        tags: ["ROBLOX"],
+        projectStatus: "completed",
+        difficulty: 1,
+        isSeekingCollaborators: false,
+        createdAt: new Date("2026-10-06"),
+    },
+    {
+        id: "12",
+        title: "Test Long Tite Superlongtitleword is the best project you can find!",
+        description: "A project where it lets you upload rejection letters from companies onto a personal pile and print them all out at once. A project where it lets you upload rejection letters from companies onto a personal pile and print them all out at once.",
+        image: "https://picsum.photos/400/400",
+        creator: "Jackson",
+        collaborators: ["Gabriel", "Akshan", "Emmanuel", "Amanda", "Nick", "Jérome"],
+        tags: ["Web development", "Structured Query Language", "Data Science"],
+        projectStatus: "ongoing",
+        difficulty: 4,
+        isSeekingCollaborators: true,
+        createdAt: new Date("2024-11-10"),
+    },
 ]
 
 
