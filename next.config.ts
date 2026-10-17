@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // The default bottom-left spot would cover the theme toggle in dev.
+  devIndicators: { position: "bottom-right" },
   images: {
     remotePatterns: [
       {

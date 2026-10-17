@@ -30,14 +30,23 @@ export type WorldLayout = {
   items: PlacedProject[];
   width: number;
   height: number;
+  /** World-space x of the middle column's centre. */
+  homeX: number;
 };
 
 /**
  * Places projects on a grid, then shifts each card by a seeded random offset
  * so they look scattered. Columns are "different projects", rows are
  * "similar projects".
+ *
+ * `scale` shrinks every distance for small screens. `spreadX` scales the
+ * sideways scatter; 0 lines each column up so a card can sit centred.
  */
-export function buildLayout(projects: Project[]): WorldLayout {
+export function buildLayout(
+  projects: Project[],
+  scale = 1,
+  spreadX = 1,
+): WorldLayout {
   const cols = Math.max(1, Math.ceil(projects.length / ROWS));
   const rows = Math.min(ROWS, Math.max(1, projects.length));
 
@@ -46,14 +55,19 @@ export function buildLayout(projects: Project[]): WorldLayout {
   const items = projects.map((project, index) => {
     const col = index % cols;
     const row = Math.floor(index / cols);
-    const offsetX = (rng() * 2 - 1) * JITTER_X;
+    const offsetX = (rng() * 2 - 1) * JITTER_X * spreadX;
     const offsetY = (rng() * 2 - 1) * JITTER_Y;
     return {
       project,
-      x: col * CELL_WIDTH + (CELL_WIDTH - CARD_WIDTH) / 2 + offsetX,
-      y: row * CELL_HEIGHT + (CELL_HEIGHT - CARD_HEIGHT) / 2 + offsetY,
+      x: (col * CELL_WIDTH + (CELL_WIDTH - CARD_WIDTH) / 2 + offsetX) * scale,
+      y: (row * CELL_HEIGHT + (CELL_HEIGHT - CARD_HEIGHT) / 2 + offsetY) * scale,
     };
   });
 
-  return { items, width: cols * CELL_WIDTH, height: rows * CELL_HEIGHT };
+  return {
+    items,
+    width: cols * CELL_WIDTH * scale,
+    height: rows * CELL_HEIGHT * scale,
+    homeX: (Math.floor(cols / 2) + 0.5) * CELL_WIDTH * scale,
+  };
 }

@@ -7,9 +7,11 @@ import {
   ChevronRight,
   type LucideIcon,
 } from "lucide-react";
+import ThemeToggle from "@/components/layout/ThemeToggle";
 import ProjectCard from "@/components/projects/ProjectCard";
 import { Project } from "@/types/project";
 import { useCanvasPan, type Point } from "./hooks/useCanvasPan";
+import { useViewportWidth } from "./hooks/useViewportWidth";
 import { useVisibleItems } from "./hooks/useVisibleItems";
 import {
   buildLayout,
@@ -19,17 +21,21 @@ import {
   type PlacedProject,
 } from "./layout";
 
-const CARD_SIZE = { width: CARD_WIDTH, height: CARD_HEIGHT };
+/** Below this screen width the canvas shrinks to fit and centres one column. */
+const FULL_SIZE_WIDTH = 460;
+const MIN_SCALE = 0.6;
+const NARROW_WIDTH = 600;
 /** Cards mount this far (px) before entering the screen, while still faded out. */
 const MOUNT_MARGIN = 400;
 
 /**
- * Fades the screen edges to black. It is one static overlay instead of an
- * opacity per card, so panning needs no per-frame fade work. The ramp is a
- * smootherstep: clear in the middle half, black at the very edge.
+ * Fades the screen edges to the page backdrop (the --fade colour, set per
+ * theme on the viewport). It is one static overlay instead of an opacity per
+ * card, so panning needs no per-frame fade work. The ramp is a smootherstep:
+ * clear in the middle half, solid at the very edge.
  */
 const RAMP =
-  "#000, rgb(0 0 0/.9) 6%, rgb(0 0 0/.5) 12.5%, rgb(0 0 0/.1) 19%, transparent 25% 75%, rgb(0 0 0/.1) 81%, rgb(0 0 0/.5) 87.5%, rgb(0 0 0/.9) 94%, #000";
+  "rgb(var(--fade)), rgb(var(--fade)/.9) 6%, rgb(var(--fade)/.5) 12.5%, rgb(var(--fade)/.1) 19%, transparent 25% 75%, rgb(var(--fade)/.1) 81%, rgb(var(--fade)/.5) 87.5%, rgb(var(--fade)/.9) 94%, rgb(var(--fade))";
 const VIGNETTE = `linear-gradient(to right, ${RAMP}), linear-gradient(to bottom, ${RAMP})`;
 /** Hover effects stay off until panning has been idle this long (ms). */
 const PAN_IDLE_MS = 120;
@@ -37,7 +43,7 @@ const PAN_IDLE_MS = 120;
 function EdgeNotice({ className }: { className: string }) {
   return (
     <p
-      className={`pointer-events-none absolute z-10 text-sm text-white/50 ${className}`}
+      className={`pointer-events-none absolute z-10 text-sm text-foreground/50 ${className}`}
     >
       No more projects this way
     </p>
@@ -62,13 +68,13 @@ function DirectionHint({
   return (
     <div
       aria-hidden
-      className={`pointer-events-none absolute z-10 flex items-center gap-2 text-white/60 ${
+      className={`pointer-events-none absolute z-10 flex items-center gap-2 text-foreground/60 ${
         labelFirst ? "flex-col-reverse" : "flex-col"
       } ${className}`}
     >
       <Icon strokeWidth={1.5} className="size-9 animate-pulse" />
       <span
-        className={`text-[11px] uppercase tracking-[0.2em] text-white/40 ${
+        className={`text-[11px] uppercase tracking-[0.2em] text-foreground/40 ${
           vertical ? "[writing-mode:vertical-rl]" : ""
         }`}
       >
@@ -78,11 +84,22 @@ function DirectionHint({
   );
 }
 
-const CanvasCard = memo(function CanvasCard({ item }: { item: PlacedProject }) {
+const CanvasCard = memo(function CanvasCard({
+  item,
+  scale,
+}: {
+  item: PlacedProject;
+  scale: number;
+}) {
   return (
     <div
-      className="absolute"
-      style={{ left: item.x, top: item.y, width: CARD_WIDTH }}
+      className="absolute origin-top-left"
+      style={{
+        left: item.x,
+        top: item.y,
+        width: CARD_WIDTH,
+        transform: scale === 1 ? undefined : `scale(${scale})`,
+      }}
     >
       <ProjectCard project={item.project} />
     </div>
@@ -95,12 +112,23 @@ const CanvasCard = memo(function CanvasCard({ item }: { item: PlacedProject }) {
  * only moves that layer (useCanvasPan), so React never re-renders on a pan.
  */
 export default function ExploreCanvas({ projects }: { projects: Project[] }) {
-  const layout = useMemo(() => buildLayout(projects), [projects]);
+  const screenWidth = useViewportWidth();
+  const scale = Math.min(1, Math.max(MIN_SCALE, screenWidth / FULL_SIZE_WIDTH));
+  const narrow = screenWidth < NARROW_WIDTH;
+  // On narrow screens the columns line up, so the start column sits centred.
+  const layout = useMemo(
+    () => buildLayout(projects, scale, narrow ? 0 : 1),
+    [projects, scale, narrow],
+  );
   const { viewportRef, size, dragging, handlers, edges, subscribe, readCamera } =
-    useCanvasPan(layout, VIEW_INSETS);
+    useCanvasPan(layout, VIEW_INSETS, narrow ? layout.homeX : layout.width / 2);
+  const cardSize = useMemo(
+    () => ({ width: CARD_WIDTH * scale, height: CARD_HEIGHT * scale }),
+    [scale],
+  );
   const visible = useVisibleItems(
     layout.items,
-    CARD_SIZE,
+    cardSize,
     size,
     subscribe,
     readCamera,
@@ -134,20 +162,16 @@ export default function ExploreCanvas({ projects }: { projects: Project[] }) {
     <div
       ref={viewportRef}
       {...handlers}
-      className={`relative h-dvh w-full touch-none select-none overflow-hidden bg-black text-white ${
+      className={`relative h-dvh w-full touch-none select-none overflow-hidden bg-background text-foreground [--fade:228_228_231] bg-[radial-gradient(ellipse_at_center,#fff_0%,#f4f4f5_45%,#e4e4e7_75%)] dark:[--fade:0_0_0] dark:bg-[radial-gradient(ellipse_at_center,#232323_0%,#0a0a0a_45%,#000_75%)] ${
         dragging ? "cursor-grabbing" : "cursor-grab"
       }`}
-      style={{
-        backgroundImage:
-          "radial-gradient(ellipse at center, #232323 0%, #0a0a0a 45%, #000 75%)",
-      }}
     >
-      <h1 className="pointer-events-none absolute left-6 top-5 z-20 text-2xl font-semibold tracking-tight text-white/50">
+      <h1 className="pointer-events-none absolute left-6 top-5 z-20 text-2xl font-semibold tracking-tight text-foreground/50">
         Website Name
       </h1>
 
       {projects.length === 0 ? (
-        <p className="absolute inset-0 flex items-center justify-center text-white/60">
+        <p className="absolute inset-0 flex items-center justify-center text-foreground/60">
           No projects to show yet. Check back soon.
         </p>
       ) : null}
@@ -157,7 +181,7 @@ export default function ExploreCanvas({ projects }: { projects: Project[] }) {
         className="absolute left-0 top-0 will-change-transform"
       >
         {visible.map((item) => (
-          <CanvasCard key={item.project.id} item={item} />
+          <CanvasCard key={item.project.id} item={item} scale={scale} />
         ))}
       </div>
 
@@ -191,6 +215,8 @@ export default function ExploreCanvas({ projects }: { projects: Project[] }) {
           className="bottom-1 left-1/2 -translate-x-1/2"
         />
       )}
+
+      <ThemeToggle className="absolute bottom-4 left-4 z-20 text-foreground/60" />
 
       {edges.left && <EdgeNotice className="left-4 top-1/2 -translate-y-1/2" />}
       {edges.right && (

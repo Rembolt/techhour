@@ -29,7 +29,11 @@ type Bounds = { minX: number; maxX: number; maxY: number };
  * Consumers `subscribe` to get the camera once per frame and move their own
  * DOM; only the rarely-changing `edges` and `dragging` are state.
  */
-export function useCanvasPan(world: Size, insets: Insets) {
+export function useCanvasPan(
+  world: Size,
+  insets: Insets,
+  homeX = world.width / 2,
+) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>({ width: 0, height: 0 });
   const [dragging, setDragging] = useState(false);
@@ -40,8 +44,8 @@ export function useCanvasPan(world: Size, insets: Insets) {
   });
   const drag = useRef<{ id: number; last: Point } | null>(null);
   // `pos` is the live position, `target` is where the wheel is easing it to.
-  const pos = useRef<Point>({ x: world.width / 2, y: 0 });
-  const target = useRef<Point>({ x: world.width / 2, y: 0 });
+  const pos = useRef<Point>({ x: homeX, y: 0 });
+  const target = useRef<Point>({ x: homeX, y: 0 });
   const frame = useRef<number | null>(null);
   const notifyFrame = useRef<number | null>(null);
   const listeners = useRef(new Set<CameraListener>());
@@ -107,6 +111,13 @@ export function useCanvasPan(world: Size, insets: Insets) {
     };
     notify();
   }, [minX, maxX, maxY, size.height, insets.top, notify]);
+
+  // A new home (the layout was rebuilt for another screen size) recentres.
+  useEffect(() => {
+    pos.current = { x: homeX, y: pos.current.y };
+    target.current = { ...pos.current };
+    notify();
+  }, [homeX, notify]);
 
   const stopEase = () => {
     if (frame.current !== null) cancelAnimationFrame(frame.current);
